@@ -8,15 +8,14 @@ options:
     -c <N>, --cache=<N>                   cache N records before commit to db
     
 id:
-    tid:                                  XXXXXX091XXXXXX
-    room:                                 XXXXXX091XXXX
-    room range:                           XXXXXX091X:XXX-XXX
-    place:                                XXXXXX091X
-    place range:                          XXXXXX091X-XXXXXX091X
+    tid:                                  XXXXXX092XXXXXX
+    room:                                 XXXXXX092XXXX
+    room range:                           XXXXXX092X:XXX-XXX
+    place:                                XXXXXX092X
+    place range:                          XXXXXX092X-XXXXXX092X
 
 tips:
     Use shell scripts to seperate your task into several sub-tasks to save
     memory, if you are working with a large amount of scores
     
-Please report bugs to <bhuztez@gmail.com>
-
+Please report bugs to <bhuztez+cetbug@gmail.com>

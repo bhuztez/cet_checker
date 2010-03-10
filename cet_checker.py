@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #   cet_checker.py - check CET score(s)
-#   Copyright (C) 2009  bhuztez <bhuztez@gmail.com>
+#   Copyright (C) 2009,2010  bhuztez <bhuztez@gmail.com>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as
@@ -23,7 +23,7 @@ set thread limit too high, which will cause too many error when
 connecting to the server and slow down your checking
 """
 __author__  = 'bhuztez <bhuztez@gmail.com>'
-__version__ = '0.01.0906'
+__version__ = '0.01.0912'
 
 from Queue import Queue
 import sys
@@ -205,7 +205,7 @@ class db_daemon:
         for row in self.con.execute(self.sql_dump):
             self.print_result(row)
 
-# 0906-specific followed
+# 0912-specific followed
 
 class result_checker:
     '''
@@ -271,7 +271,7 @@ class result_checker:
         
         from StringIO import StringIO
         from pycurl import POSTFIELDS, WRITEFUNCTION, HTTP_CODE, error
-        self.curl.setopt(POSTFIELDS, "id=%s"%(tid))
+        self.curl.setopt(POSTFIELDS, "id=%s&vc=novcversion"%(tid))
         buf = StringIO()
         self.curl.setopt(WRITEFUNCTION, buf.write)
     
@@ -413,17 +413,17 @@ options:
     -c <N>, --cache=<N>                   cache N records before commit to db
     
 id:
-    tid:                                  XXXXXX091XXXXXX
-    room:                                 XXXXXX091XXXX
-    room range:                           XXXXXX091X:XXX-XXX
-    place:                                XXXXXX091X
-    place range:                          XXXXXX091X-XXXXXX091X
+    tid:                                  XXXXXX092XXXXXX
+    room:                                 XXXXXX092XXXX
+    room range:                           XXXXXX092X:XXX-XXX
+    place:                                XXXXXX092X
+    place range:                          XXXXXX092X-XXXXXX092X
 
 tips:
     Use shell scripts to seperate your task into several sub-tasks to save
     memory, if you are working with a large amount of scores
     
-Please report bugs to <bhuztez@gmail.com>'''
+Please report bugs to <bhuztez+cetbug@gmail.com>'''
 
 def main(args, codec, max_threads = 10, 
          database = None, cache_size = 0, append = False):
@@ -457,8 +457,8 @@ def main(args, codec, max_threads = 10,
           lambda result:
               db.insert((
                   result['tid'],
-                  result['name'],
-                  result['college'],
+                  result['name'].decode('UTF8'),
+                  result['college'].decode('UTF8'),
                   result['total'],
                   result['A'],
                   result['B'],
@@ -474,7 +474,7 @@ def main(args, codec, max_threads = 10,
           max_threads)
     
     for arg in args:
-        if match(r"\d{6}091[12]\d{5}$", arg):
+        if match(r"\d{6}092[12]\d{5}$", arg):
             # check tid
             result = result_checker(convert).check(arg)
             if result:
@@ -482,29 +482,29 @@ def main(args, codec, max_threads = 10,
             else:
                 print >> sys.stderr, "NO record!"
         
-        elif match(r"\d{6}091[12]\:\d{1,3}\-\d{1,3}$", arg):
+        elif match(r"\d{6}092[12]\:\d{1,3}\-\d{1,3}$", arg):
             # check room range
             param = match(
-                r"(?P<place>\d{6})091(?P<level>[12])\:(?P<from>\d{1,3})\-(?P<to>\d{1,3})",
+                r"(?P<place>\d{6})092(?P<level>[12])\:(?P<from>\d{1,3})\-(?P<to>\d{1,3})",
                 arg).groupdict()
             for i in range(int(param['from']), int(param['to'])+1):
                 q.put(
-                    work("%s091%s%03d"%(param['place'], param['level'], i), 
+                    work("%s092%s%03d"%(param['place'], param['level'], i), 
                          work.try_room))
             
-        elif match(r"\d{6}091[12]\d{3}$", arg):
+        elif match(r"\d{6}092[12]\d{3}$", arg):
             # check room
             q.put(work(arg, work.try_room))
             
-        elif match(r"\d{6}091([12])\-\d{6}091(\1)$", arg):
+        elif match(r"\d{6}092([12])\-\d{6}092(\1)$", arg):
             #check place range
             param = match(
-                r"(?P<from>\d{6})091(?P<level>[12])\-(?P<to>\d{6})091[12]",
+                r"(?P<from>\d{6})092(?P<level>[12])\-(?P<to>\d{6})092[12]",
                 arg).groupdict()
             for i in range(int(param['from']), int(param['to'])+1):
-                q.put(work("%06d091%s"%(i, param['level']), work.try_place))
+                q.put(work("%06d092%s"%(i, param['level']), work.try_place))
             
-        elif match(r"\d{6}091[12]$", arg):
+        elif match(r"\d{6}092[12]$", arg):
             #check place
             q.put(work(arg, work.try_place))
         
