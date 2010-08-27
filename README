@@ -1,21 +1,17 @@
 Usage: cet_checker.py [options] id...
-    
-options:
-    -k<N>, --threads=<N>                  set threads limit to N (default 10)
-    -o <DATABASE>, --output=<DATABASE>    output result to sqlite3 DATABASE 
-    --memdb                               equivalent to --output=:memory:
-    -a <DATABASE>, --append=<DATABASE>    append result to sqlite3 DATABASE
-    -c <N>, --cache=<N>                   cache N records before commit to db
-    
-id:
-    tid:                                  XXXXXX092XXXXXX
-    room:                                 XXXXXX092XXXX
-    room range:                           XXXXXX092X:XXX-XXX
-    place:                                XXXXXX092X
-    place range:                          XXXXXX092X-XXXXXX092X
 
-tips:
-    Use shell scripts to seperate your task into several sub-tasks to save
-    memory, if you are working with a large amount of scores
-    
+ID:
+    tid:                                  XXXXXX101XXXXXX
+    room:                                 XXXXXX101XXXX
+    room range:                           XXXXXX101X:XXX-XXX
+    place:                                XXXXXX101X
+    place range:                          XXXXXX101X-XXXXXX101X
+
+Options:
+  -k N, --threads=N     set threads limit (default 10)
+  -c C, --cache-size=C  numbers of records cached before commit to db (default
+                        0)
+  -o DB, --database=DB  output database filename (default :memory:)
+  -h, --help            show this help message and exit
+
 Please report bugs to <bhuztez+cetbug@gmail.com>
