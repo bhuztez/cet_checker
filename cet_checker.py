@@ -1,6 +1,6 @@
-#!/usr/bin/env python2.6
+#!/usr/bin/env python2.7
 #   cet_checker.py - check CET score(s)
-#   Copyright (C) 2009,2010  bhuztez <bhuztez@gmail.com>
+#   Copyright (C) 2009,2010,2011  bhuztez <bhuztez@gmail.com>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as
@@ -20,9 +20,80 @@ check CET score(s)
 Check your CET score directly, or speed up collecting CET scores."""
 
 __author__  = 'bhuztez <bhuztez@gmail.com>'
-__version__ = '0.02.1006'
+__version__ = '0.03.1012'
 
-import sys, re, pycurl, threading, Queue, sqlite3, bisect, StringIO
+import sys, re, pycurl, threading, Queue, sqlite3, bisect, StringIO, os, os.path
+
+try:
+    from PIL import Image
+except ImportError:
+    import Image
+
+bitstrings = [ 
+'\xe3\xc1\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\xc1\xe3\xff',
+'\xf3\xe3\xc3\xd3\xf3\xf3\xf3\xf3\xf3\xf3\xf3\xf3\xc0\xc0\xff',
+'\xe3\xc1\x9c\xbc\xfc\xf9\xf3\xe7\xcf\x9f\x9f\x9f\x80\x80\xff',
+'\xe3\xc1\x9c\xfc\xf9\xf9\xf3\xe7\xf3\xf9\xf9\xfc\x9c\xc1\xe3',
+'\xfd\xf9\xf1\xe1\xc9\x99\x39\x39\x39\x39\x00\x00\xf9\xf9\xf9',
+'\x80\x80\x9f\x9f\x9f\x83\x81\xf9\xfc\xfc\x9c\x9c\xc1\xe3\xff',
+'\xe3\xc0\xcc\x9f\x9f\x9f\x9f\x83\x81\x9c\x9c\x9c\x80\xe1\xff',
+'\x80\x80\x9c\xfc\xfc\xf9\xf9\xf3\xf3\xe7\xe7\xe7\xe7\xe7\xff',
+'\xe3\xc1\x9c\x9c\x9c\xc9\xc9\xe7\xc9\xc9\x9c\x9c\x9c\xc1\xe3',
+'\xe3\xc1\x9c\x9c\x9c\xc0\xc4\xfc\xfc\xfc\xfc\x9c\x98\xc3\xe7' ]
+
+masks = [ Image.fromstring("1", (8,15), s) for s in bitstrings ]
+background = Image.new("1", (8,15), 1)
+positions = [ (6+i*11,5,14+i*11,20) for i in range(0,8) ]
+
+
+def match(img, mask):
+    return Image.composite(background, img, mask).tostring() == mask.tostring()
+
+
+def vcd(img):
+    for i, mask in enumerate(masks):
+        if match(img, mask):
+            return i
+
+
+def validate(img):
+    return "".join([ "%d"%(vcd(img.crop(p).convert("1"))) for p in positions ])
+
+
+def vc(path):
+    return validate(Image.open(path))
+
+
+def fetch_vc(tid):
+    path = "vc/%s.png"%(tid)
+    if os.path.exists(path) and os.path.getsize(path):
+        return path
+
+    curl = pycurl.Curl()
+    curl.setopt(pycurl.URL, "http://va.99sushe.com/validate.html?id=%s"%(tid))
+    curl.setopt(pycurl.HTTPHEADER, ["Referer: http://cet.99sushe.com/"])
+
+    buf = StringIO.StringIO()
+    curl.setopt(pycurl.WRITEFUNCTION, buf.write)
+
+    curl.perform()
+
+    if (curl.getinfo(pycurl.HTTP_CODE) == 200):
+        content = buf.getvalue()
+        f = open(path, "w")
+        f.write(content)
+        f.close()
+
+        if os.path.getsize(path):
+            return path
+
+
+def get_vc(tid):
+    path = fetch_vc(tid)
+    if path is None:
+        return
+
+    return vc(path)
 
 
 class Collector(Queue.Queue):
@@ -218,7 +289,10 @@ class Checker(object):
             return dict(result.groupdict(), tid=tid)
     
     def check(self, tid):
-        self.curl.setopt(pycurl.POSTFIELDS, "id=%s"%(tid))
+        vc = get_vc(tid)
+        if not vc: return
+
+        self.curl.setopt(pycurl.POSTFIELDS, "id=%s&vc=%s"%(tid, vc))
         
         while True:
             result = self._check()
@@ -296,10 +370,15 @@ def get_place(checker, prefix):
     if checker.check("%s00101"%(prefix)):
         rooms = LazyList(range(1,1000), lambda index:checker.check("%s%03d01"%(prefix, index)))        
         room = rooms.binary_search()
-        return [ get_room("%s%02d"%(prefix, i)) for i in range(1, room) ]
+        return [ get_room("%s%03d"%(prefix, i)) for i in range(1, room) ]
 
 
 def main(database, cache_size, max_threads, *args):
+    try:
+        os.mkdir('vc')
+    except OSError:
+        pass
+
     committer = CachedCommitter(cache_size, database, 'result',
         tid = 'integer primary key',
         name = 'text', college = 'text', total = 'integer',
@@ -309,28 +388,28 @@ def main(database, cache_size, max_threads, *args):
     
     for arg in args:
         
-        if re.match(r"\d{6}101[12]\d{5}$", arg):
+        if re.match(r"\d{6}102[12]\d{5}$", arg):
             queue.put(get_score(arg))
         
-        elif re.match(r"\d{6}101[12]\d{3}$", arg):
+        elif re.match(r"\d{6}102[12]\d{3}$", arg):
             queue.put(get_room(arg))
         
-        elif re.match(r"\d{6}101[12]\:\d{1,3}\-\d{1,3}$", arg):
+        elif re.match(r"\d{6}102[12]\:\d{1,3}\-\d{1,3}$", arg):
             param = re.match(
-                r"(?P<place>\d{6})101(?P<level>[12])\:(?P<from>\d{1,3})\-(?P<to>\d{1,3})",
+                r"(?P<place>\d{6})102(?P<level>[12])\:(?P<from>\d{1,3})\-(?P<to>\d{1,3})",
                 arg).groupdict()
             for i in range(int(param['from']), int(param['to'])+1):
-                queue.put(get_room("%s101%s%03d"%(param['place'], param['level'], i)))
+                queue.put(get_room("%s102%s%03d"%(param['place'], param['level'], i)))
         
-        elif re.match(r"\d{6}101[12]$", arg):
+        elif re.match(r"\d{6}102[12]$", arg):
             queue.put(get_place(arg))
         
-        elif re.match(r"\d{6}101([12])\-\d{6}101(\1)$", arg):
+        elif re.match(r"\d{6}102([12])\-\d{6}102(\1)$", arg):
             param = re.match(
-                r"(?P<from>\d{6})101(?P<level>[12])\-(?P<to>\d{6})101[12]",
+                r"(?P<from>\d{6})102(?P<level>[12])\-(?P<to>\d{6})102[12]",
                 arg).groupdict()
             for i in range(int(param['from']), int(param['to'])+1):
-                queue.put(get_place("%06d101%s"%(i, param['level'])))
+                queue.put(get_place("%06d102%s"%(i, param['level'])))
         
         else:
             print >> sys.stderr, "Invalid ID: %s"%(arg)
@@ -345,11 +424,11 @@ def main(database, cache_size, max_threads, *args):
 DESCRIPTION = '''
 
 ID:
-    tid:                                  XXXXXX101XXXXXX
-    room:                                 XXXXXX101XXXX
-    room range:                           XXXXXX101X:XXX-XXX
-    place:                                XXXXXX101X
-    place range:                          XXXXXX101X-XXXXXX101X'''
+    tid:                                  XXXXXX102XXXXXX
+    room:                                 XXXXXX102XXXX
+    room range:                           XXXXXX102X:XXX-XXX
+    place:                                XXXXXX102X
+    place range:                          XXXXXX102X-XXXXXX102X'''
 
 if __name__ == '__main__':
     from optparse import OptionParser, make_option

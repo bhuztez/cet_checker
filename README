@@ -1,16 +1,15 @@
 Usage: cet_checker.py [options] id...
 
 ID:
-    tid:                                  XXXXXX101XXXXXX
-    room:                                 XXXXXX101XXXX
-    room range:                           XXXXXX101X:XXX-XXX
-    place:                                XXXXXX101X
-    place range:                          XXXXXX101X-XXXXXX101X
+    tid:                                  XXXXXX102XXXXXX
+    room:                                 XXXXXX102XXXX
+    room range:                           XXXXXX102X:XXX-XXX
+    place:                                XXXXXX102X
+    place range:                          XXXXXX102X-XXXXXX102X
 
 Options:
   -k N, --threads=N     set threads limit (default 10)
-  -c C, --cache-size=C  numbers of records cached before commit to db (default
-                        0)
+  -c C, --cache-size=C  numbers of records cached before commit (default 0)
   -o DB, --database=DB  output database filename (default :memory:)
   -h, --help            show this help message and exit
 
